@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>🚦 Traffic Predictor — Playground</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <style>
+    .glass { background: rgba(255,255,255,0.75); backdrop-filter: blur(8px); }
+    .dark .glass { background: rgba(17,25,40,0.55); }
+    .pill { border-radius:9999px; padding:0.35rem 0.75rem; }
+    .spin { animation: spin 0.8s linear infinite }
+    @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+    .pulse { animation:pulse 1.5s ease-in-out infinite }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+    #emojiCanvas { pointer-events:none; position:fixed; inset:0; z-index:30; }
+    .help { cursor: help; text-decoration: dotted underline; }
+    .hint { font-size: 11px; color: rgb(100 116 139); }
+    .dark .hint { color: rgb(148 163 184); }
+    label .tag { font-size: 10px; padding: 2px 6px; border-radius: 9999px; background: rgba(15,23,42,0.06); margin-left: 6px; }
+    .dark label .tag { background: rgba(148,163,184,0.12); }
+
+    /* Labels: bold + dark purple in both modes */
+    label { font-weight: 600;}
+    .dark label { color: #5b21b6; }
+
+    /* Light mode: lavender background outside cards */
+    html:not(.dark) body {
+      background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e6e6fa 100%) !important;
+      background-attachment: fixed;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-fuchsia-50 via-sky-50 to-emerald-50 dark:from-slate-900 dark:via-slate-950 dark:to-black text-slate-900 dark:text-slate-100">
+  <header class="flex items-center justify-between px-5 py-4">
+    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">
+      🚦 Smart Traffic Predictor —
+      <span class="text-fuchsia-600">Real-World Forecasting Engine</span>
+    </h1>
+
+    <div class="flex items-center gap-3">
+      <button id="themeBtn" class="pill border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">🌓 Theme</button>
+      <a href="http://127.0.0.1:8000/docs" target="_blank" class="pill border border-indigo-300 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/40">API Docs</a>
+    </div>
+  </header>
+
+  <nav class="px-5 -mt-2">
+    <div class="inline-flex rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+      <button data-tab="tab-play" class="tabbtn px-4 py-2 bg-white dark:bg-slate-900">Play</button>
+      <button data-tab="tab-sim"  class="tabbtn px-4 py-2 hover:bg-white/70 dark:hover:bg-slate-900/70">Simulator</button>
+      <button data-tab="tab-about" class="tabbtn px-4 py-2 hover:bg-white/70 dark:hover:bg-slate-900/70">About</button>
+    </div>
+  </nav>
+
+  <main class="px-5 pb-16">
+    <!-- PLAY TAB -->
+    <section id="tab-play" class="grid lg:grid-cols-3 gap-5 mt-4">
+      <!-- Inputs -->
+      <section class="glass rounded-2xl p-5 shadow-sm lg:col-span-2">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Inputs</h2>
+          <div class="flex items-center gap-2">
+            <select id="preset" class="pill bg-white/80 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-700" title="Quickly load a typical scenario">
+              <option value="">Presets…</option>
+              <option value="rush">🚗 Rush Hour</option>
+              <option value="mid">🌤️ Midday</option>
+              <option value="night">🌙 Late Night</option>
+              <option value="event">🎉 Stadium Event</option>
+            </select>
+            <button id="fillHigh" class="pill bg-rose-600 text-white hover:bg-rose-700" title="Auto-tune inputs for a likely High congestion">🔥 High</button>
+            <button id="fillLow"  class="pill bg-emerald-600 text-white hover:bg-emerald-700" title="Auto-tune inputs for a likely Low congestion">🧊 Low</button>
+            <button id="randBtn"  class="pill bg-sky-600 text-white hover:bg-sky-700" title="Fill with realistic random values">🎲 Randomize</button>
+            <button id="shareBtn" class="pill border border-slate-300 dark:border-slate-700" title="Copy a link with your current inputs">🔗 Share</button>
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-4 mt-3">
+          <div>
+            <label class="block text-sm mb-1">
+              Junction ID
+              <span class="tag">1–4</span>
+            </label>
+            <input id="Junction" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="2" min="1" title="Which junction number this record belongs to" />
+            <div class="hint mt-1">Select the intersection/junction number.</div>
+
+            <label class="block text-sm mt-3 mb-1">
+              Hour of Day <span class="tag">0–23</span>
+            </label>
+            <input id="hour" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="17" min="0" max="23" title="Local hour in 24h format (0=midnight)" />
+            <div class="hint mt-1">Use 24-hour format. Example: 17 = 5 PM.</div>
+
+            <label class="block text-sm mt-3 mb-1">
+              Day of Week <span class="tag">0=Mon … 6=Sun</span>
+            </label>
+            <input id="dayofweek" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="3" min="0" max="6" title="0=Mon, 1=Tue, … 6=Sun" />
+            <div class="hint mt-1">0=Mon, 3=Thu, etc.</div>
+
+            <label class="block text-sm mt-3 mb-1">
+              Weekend? <span class="tag">0=No, 1=Yes</span>
+            </label>
+            <input id="is_weekend" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="0" min="0" max="1" title="Is the date a weekend?" />
+            <div class="hint mt-1">Set 1 for Saturday/Sunday, else 0.</div>
+          </div>
+
+          <div>
+            <label class="block text-sm mb-1">
+              Current Vehicles (now)
+            </label>
+            <input id="Vehicles" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="120" title="Estimated number of vehicles at this time" />
+
+            <label class="block text-sm mt-3 mb-1">
+              Vehicles 1 hour ago
+            </label>
+            <input id="Vehicles_lag1" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="118" title="Vehicles count 1 hour before now" />
+
+            <label class="block text-sm mt-3 mb-1">
+              Vehicles 2 hours ago
+            </label>
+            <input id="Vehicles_lag2" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="115" title="Vehicles count 2 hours before now" />
+
+            <label class="block text-sm mt-3 mb-1">
+              Vehicles 3 hours ago
+            </label>
+            <input id="Vehicles_lag3" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="110" title="Vehicles count 3 hours before now" />
+          </div>
+
+          <div>
+            <label class="block text-sm mb-1">
+              Vehicles 6 hours ago
+            </label>
+            <input id="Vehicles_lag6" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="95" title="Vehicles count 6 hours before now" />
+
+            <label class="block text-sm mt-3 mb-1">
+              Same Hour Yesterday (24h ago)
+            </label>
+            <input id="Vehicles_lag24" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="140" title="Vehicles count exactly 24 hours before now" />
+
+            <label class="block text-sm mt-3 mb-1">
+              Avg of Last 3 hours
+            </label>
+            <input id="roll3_mean" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="114" title="Rolling mean over the last 3 hours" />
+
+            <label class="block text-sm mt-3 mb-1">
+              Avg of Last 24 hours
+            </label>
+            <input id="roll24_mean" type="number" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-3 py-2" value="130" title="Rolling mean over the last 24 hours" />
+          </div>
+        </div>
+
+        <div class="mt-5 flex items-center gap-3">
+          <button id="predictBtn" onclick="predict()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow">Predict</button>
+          <button id="copyBtn" class="pill border border-slate-300 dark:border-slate-700">📋 Copy JSON</button>
+          <span id="status" class="text-sm text-slate-500"></span>
+        </div>
+
+        <!-- Dataset note (compact + grid-safe) -->
+<div class="mt-3 p-3 rounded-lg border bg-white/90 dark:bg-slate-900/70 border-violet-300 dark:border-violet-700 w-full min-w-0 break-words">
+  <div class="text-[11px] md:text-xs uppercase tracking-wider font-bold text-violet-800 dark:text-violet-300">
+    Dataset
+  </div>
+  <p class="mt-1 text-xs md:text-sm font-semibold text-slate-900 dark:text-slate-100 leading-relaxed">
+    Public traffic monitoring records collected from <strong>four urban junctions</strong>,
+    spanning <strong>Nov&nbsp;2015 – Jun&nbsp;2017</strong>.
+  </p>
+  <p class="mt-1 text-xs md:text-sm font-semibold text-slate-900 dark:text-slate-100 leading-relaxed">
+    Each record is an <strong>hourly vehicle count</strong> with timestamp and junction ID — a widely used
+    benchmark for <strong>traffic forecasting research</strong>.
+  </p>
+</div>
+
+      </section>
+
+      <!-- Output / Visuals -->
+      <aside class="glass rounded-2xl p-5 shadow-sm">
+        <h2 class="text-lg font-semibold mb-3">Result</h2>
+        <div class="flex items-center gap-3 flex-wrap">
+          <div id="badge" class="pill inline-block text-sm font-semibold bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/60">waiting…</div>
+          <div id="safetyMsg" aria-live="polite" class="pill text-sm border border-slate-300 dark:border-slate-700">
+            ℹ️ Waiting for prediction…
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-4">
+          <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+            <p class="text-xs mb-1 text-slate-500">Confidence</p>
+            <canvas id="confChart" height="140"></canvas>
+          </div>
+          <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+            <p class="text-xs mb-1 text-slate-500">Recent classifications</p>
+            <canvas id="historyChart" height="140"></canvas>
+          </div>
+        </div>
+
+        <!-- Congestion Animation -->
+        <h3 class="mt-5 text-sm font-semibold text-slate-500">Congestion Animation</h3>
+        <div class="mt-2 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <canvas id="trafficCanvas" width="520" height="160" style="display:block; width:100%; height:160px;"></canvas>
+        </div>
+        <div class="mt-2 flex items-center gap-2">
+          <button id="animToggle" class="pill border border-slate-300 dark:border-slate-700 px-3">⏯ Play/Pause</button>
+          <span class="text-xs text-slate-500">Cars speed & density reflect congestion.</span>
+        </div>
+
+        <h3 class="mt-5 text-sm font-semibold text-slate-500">Raw Response</h3>
+        <pre id="out" class="mt-2 text-sm p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 overflow-auto"></pre>
+      </aside>
+    </section>
+
+    <!-- SIM TAB -->
+    <section id="tab-sim" class="hidden mt-5">
+      <div class="glass rounded-2xl p-5 shadow-sm">
+        <h2 class="text-lg font-semibold">Auto-Play Simulator</h2>
+        <p class="text-sm text-slate-500">Auto-randomizes inputs and calls the API every 2s. Great for demos.</p>
+        <div class="mt-3 flex items-center gap-3">
+          <button id="autoBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">▶ Play</button>
+          <span id="autoStatus" class="text-sm text-slate-500"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABOUT TAB -->
+    <section id="tab-about" class="hidden mt-5">
+      <div class="glass rounded-2xl p-5 shadow-sm">
+        <h2 class="text-lg font-semibold">About</h2>
+        <p class="text-sm text-slate-600 dark:text-slate-300">
+          Playful UI for your ML model. Presets, randomizer, simulator, dark mode, confetti & an animated road that mirrors the congestion level.
+        </p>
+        <ul class="list-disc ml-6 mt-3 text-sm">
+          <li>Shortcuts: <code>R</code> randomize, <code>P</code> predict, <code>A</code> autoplay.</li>
+          <li>Share link encodes your inputs in the URL.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- Emoji overlay -->
+  <div id="emojiCanvas"></div>
+
+  <!-- Wire up module -->
+  <script type="module">
+    import { initUI, predict, randomizeInputs, setTab } from './script.js';
+    window.predict = predict;
+    window.randomizeInputs = randomizeInputs;
+    window.setTab = setTab;
+    initUI();
+  </script>
+</body>
+</html>

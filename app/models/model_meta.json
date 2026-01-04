@@ -1,0 +1,21 @@
+{
+  "feat_num": [
+    "Vehicles",
+    "Vehicles_lag1",
+    "Vehicles_lag2",
+    "Vehicles_lag3",
+    "Vehicles_lag6",
+    "Vehicles_lag24",
+    "roll3_mean",
+    "roll24_mean",
+    "hour",
+    "dayofweek",
+    "is_weekend"
+  ],
+  "feat_cat": [
+    "Junction"
+  ],
+  "cut_date": "2017-03-01T00:00:00",
+  "K_HIGH": 1.0,
+  "K_LOW": -0.5
+}
